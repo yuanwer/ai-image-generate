@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 图像创作</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #f5f5f7;
+        }
+        .apple-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 18px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+        .apple-button {
+            background: linear-gradient(145deg, #007aff, #0056b3);
+            transition: all 0.3s ease;
+        }
+        .apple-button:hover {
+            background: linear-gradient(145deg, #0056b3, #003d80);
+        }
+        .apple-input {
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        .apple-input:focus {
+            background: rgba(255, 255, 255, 0.8);
+        }
+        @keyframes flyAcross {
+            0% { transform: translateX(100%); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateX(-100%); opacity: 0; }
+        }
+        .danmaku {
+            position: absolute;
+            white-space: nowrap;
+            animation: flyAcross 5s linear;
+            left: 0;
+            right: 0;
+            font-size: 18px; /* 增加字号 */
+            font-weight: 500; /* 增加字重 */
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2); /* 增强文字阴影 */
+        }
+        #danmakuContainer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+    <div class="max-w-4xl mx-auto apple-card p-8">
+        <header class="mb-8">
+            <h1 class="text-3xl font-medium text-gray-800">AI 图像创作</h1>
+        </header>
+
+        <main>
+            <div class="flex flex-col lg:flex-row gap-8">
+                <section id="imageSection" class="w-full lg:w-1/2">
+                    <div id="result" class="relative aspect-square bg-gray-100 rounded-2xl overflow-hidden">
+                        <div id="placeholderSvg" class="w-full h-full flex items-center justify-center">
+                            <svg class="w-24 h-24 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                        </div>
+                        <img id="generatedImage" src="" alt="生成的图像" class="w-full h-full object-cover hidden">
+                        <div id="danmakuContainer"></div>
+                    </div>
+                </section>
+
+                <section id="controlSection" class="w-full lg:w-1/2 relative">
+                    <div id="controlPanel">
+                        <div class="mb-6">
+                            <label for="promptInput" class="block text-sm font-medium text-gray-600 mb-2">创作灵感</label>
+                            <input type="text" id="promptInput" placeholder="描述你想要的图像..." class="w-full p-3 apple-input border-none rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300">
+                        </div>
+                        <div class="mb-6">
+                            <button id="generateBtn" class="w-full apple-button text-white px-6 py-3 rounded-xl text-lg font-medium">开始创作</button>
+                        </div>
+                        <div class="mb-6">
+                            <button id="saveBtn" class="w-full bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl text-lg font-medium transition hidden">保存图片</button>
+                        </div>
+                        <div class="mb-6">
+                            <h3 class="text-sm font-medium text-gray-600 mb-3">图片风格</h3>
+                            <div class="grid grid-cols-3 gap-3">
+                                <label class="flex items-center">
+                                    <input type="radio" name="style" value="默认" checked class="mr-2 text-blue-500 focus:ring-blue-400">
+                                    <span class="text-sm">默认</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="style" value="写实" class="mr-2 text-blue-500 focus:ring-blue-400">
+                                    <span class="text-sm">写实</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="style" value="动漫" class="mr-2 text-blue-500 focus:ring-blue-400">
+                                    <span class="text-sm">动漫</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="style" value="油画" class="mr-2 text-blue-500 focus:ring-blue-400">
+                                    <span class="text-sm">油画</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="style" value="中国风" class="mr-2 text-blue-500 focus:ring-blue-400">
+                                    <span class="text-sm">中国风</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="style" value="简笔画" class="mr-2 text-blue-500 focus:ring-blue-400">
+                                    <span class="text-sm">简笔画</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mb-6">
+                            <h3 class="text-sm font-medium text-gray-600 mb-3">滤镜效果</h3>
+                            <div class="grid grid-cols-3 gap-3">
+                                <label class="flex items-center">
+                                    <input type="radio" name="filter" value="无" checked class="mr-2 text-blue-500 focus:ring-blue-400">
+                                    <span class="text-sm">无滤镜</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="filter" value="复古" class="mr-2 text-blue-500 focus:ring-blue-400">
+                                    <span class="text-sm">复古</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="filter" value="黑白" class="mr-2 text-blue-500 focus:ring-blue-400">
+                                    <span class="text-sm">黑白</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="filter" value="高对比度" class="mr-2 text-blue-500 focus:ring-blue-400">
+                                    <span class="text-sm">高对比度</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="filter" value="模糊" class="mr-2 text-blue-500 focus:ring-blue-400">
+                                    <span class="text-sm">模糊</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mb-6">
+                            <h3 class="text-sm font-medium text-gray-600 mb-3">色彩主题</h3>
+                            <div class="grid grid-cols-3 gap-3">
+                                <label class="flex items-center">
+                                    <input type="radio" name="colorTheme" value="默认" checked class="mr-2 text-blue-500 focus:ring-blue-400">
+                                    <span class="text-sm">默认</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="colorTheme" value="暖色调" class="mr-2 text-blue-500 focus:ring-blue-400">
+                                    <span class="text-sm">暖色调</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="colorTheme" value="冷色调" class="mr-2 text-blue-500 focus:ring-blue-400">
+                                    <span class="text-sm">冷色调</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mb-6">
+                            <h3 class="text-sm font-medium text-gray-600 mb-3">视角</h3>
+                            <div class="grid grid-cols-3 gap-3">
+                                <label class="flex items-center">
+                                    <input type="radio" name="perspective" value="默认" checked class="mr-2 text-blue-500 focus:ring-blue-400">
+                                    <span class="text-sm">默认</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="perspective" value="俯视" class="mr-2 text-blue-500 focus:ring-blue-400">
+                                    <span class="text-sm">俯视</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="perspective" value="仰视" class="mr-2 text-blue-500 focus:ring-blue-400">
+                                    <span class="text-sm">仰视</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="perspective" value="侧面" class="mr-2 text-blue-500 focus:ring-blue-400">
+                                    <span class="text-sm">侧面</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="perspective" value="远景" class="mr-2 text-blue-500 focus:ring-blue-400">
+                                    <span class="text-sm">远景</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="perspective" value="特写" class="mr-2 text-blue-500 focus:ring-blue-400">
+                                    <span class="text-sm">特写</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="generatingOverlay" class="absolute inset-0 bg-white bg-opacity-80 backdrop-filter backdrop-blur-sm flex items-center justify-center hidden">
+                        <button id="cancelBtn" class="bg-red-500 text-white px-6 py-3 rounded-xl hover:bg-red-600 transition">取消生成</button>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const promptInput = document.getElementById('promptInput');
+        const generateBtn = document.getElementById('generateBtn');
+        const generatedImage = document.getElementById('generatedImage');
+        const placeholderSvg = document.getElementById('placeholderSvg');
+        const controlPanel = document.getElementById('controlPanel');
+        const generatingOverlay = document.getElementById('generatingOverlay');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const danmakuContainer = document.getElementById('danmakuContainer');
+        const danmakuMessages = [
+            "🎨 小画笔正在挥毫泼墨~",
+            "✨ 创意火花正在噼里啪啦~",
+            "🌈 正在调配最美的彩虹色~",
+            "🚀 绘画引擎嗖嗖嗖~",
+            "🧙‍♂️ 魔法棒在施展神奇魔法~",
+            "🌟 灵感星星在闪闪发光~",
+            "🎭 创意剧本正在上演哦~",
+            "🌺 正在培育最漂亮的小花花~",
+            "🎢 创意过山车咻咻咻~",
+            "🍭 正在制作甜甜的视觉糖果~",
+            "🎉 惊喜礼物马上就要送到啦~",
+            "🦄 小独角兽正在实现梦想~",
+            "🌙 月球上的画笔在挥舞~",
+            "🎨 调色盘已经准备好啦~"
+        ];
+
+        const colors = ['#34D399', '#60A5FA', '#F59E0B', '#EC4899', '#8B5CF6', '#6EE7B7', '#FCD34D', '#F87171'];
+        let lastUsedLanes = [];
+        const totalLanes = 5; // 定义总车数
+        let activeDanmakus = new Array(totalLanes).fill(null);
+
+        let lastGeneratedImageSrc = '';
+        let isGenerating = false;
+
+        const styleDescriptions = {
+            '默认': '',
+            '写实': '高度写实的风格，注重细节，光影真实，如同照片',
+            '动漫': '日本动漫风格，明亮的色彩，夸张的表情，2D平面效果',
+            '油画': '厚重的笔触，丰富的色彩层次，质感强烈，具有古典艺术气息',
+            '中国风': '传统中国绘画风格，水墨画效果，意境优雅，东方美学',
+            '简笔画': '简单的线条绘画，轮廓清晰，少量细节，童趣十足'
+        };
+
+        const filterEffects = {
+            '无': '',
+            '复古': 'sepia(0.5)',
+            '黑白': 'grayscale(1)',
+            '高对比度': 'contrast(1.5)',
+            '模糊': 'blur(2px)'
+        };
+
+        const colorThemes = {
+            '默认': '',
+            '暖色调': '使用温暖的色调，如红色、橙色和黄色',
+            '冷色调': '使用冷色调，如蓝色、绿色和紫色'
+        };
+
+        const perspectives = {
+            '默认': '',
+            '俯视': '从正上方俯视的视角，如同鸟瞰图',
+            '仰视': '从正下方仰望的视角，强调高度和垂直感',
+            '侧面': '从水平方向观察的侧面视角，展示物体的侧面轮廓',
+            '远景': '从远处观察的全景视角，呈现广阔的场景',
+            '特写': '极近距离的特写视角，突出细节和质感'
+        };
+
+        function applyFilter(image, filter) {
+            image.style.filter = filterEffects[filter];
+        }
+
+        generateBtn.addEventListener('click', () => {
+            const prompt = promptInput.value.trim();
+            if (prompt) {
+                const selectedStyle = document.querySelector('input[name="style"]:checked').value;
+                startImageGeneration(prompt, selectedStyle);
+            } else {
+                alert('请输入提示词');
+            }
+        });
+
+        cancelBtn.addEventListener('click', () => {
+            stopImageGeneration();
+        });
+
+        function addDanmaku() {
+            if (!isGenerating) return;
+
+            const availableLanes = activeDanmakus.map((danmaku, index) => danmaku === null ? index : -1).filter(index => index !== -1);
+
+            if (availableLanes.length === 0) {
+                setTimeout(addDanmaku, 50); // 如果没有可用车道，更快地再次尝试
+                return;
+            }
+
+            const lane = availableLanes[Math.floor(Math.random() * availableLanes.length)];
+            const danmaku = document.createElement('div');
+            danmaku.className = 'danmaku';
+            danmaku.textContent = danmakuMessages[Math.floor(Math.random() * danmakuMessages.length)];
+            
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            danmaku.style.color = color;
+            danmaku.style.top = `${lane * 20}%`;
+
+            activeDanmakus[lane] = danmaku;
+            danmakuContainer.appendChild(danmaku);
+
+            danmaku.addEventListener('animationend', () => {
+                danmaku.remove();
+                activeDanmakus[lane] = null;
+            });
+
+            // 计算下一个弹幕的延迟时间
+            const minDelay = 300; // 最小延迟时间（毫秒）
+            const maxDelay = 800; // 最大延迟时间（毫秒）
+            const nextDelay = Math.random() * (maxDelay - minDelay) + minDelay;
+
+            setTimeout(addDanmaku, nextDelay);
+        }
+
+        const saveBtn = document.getElementById('saveBtn');
+
+        function showSaveButton() {
+            saveBtn.classList.remove('hidden');
+        }
+
+        function hideSaveButton() {
+            saveBtn.classList.add('hidden');
+        }
+
+        function startImageGeneration(prompt, style) {
+            isGenerating = true;
+            generatingOverlay.classList.remove('hidden');
+            generatedImage.classList.add('hidden');
+            placeholderSvg.classList.remove('hidden');
+            danmakuContainer.innerHTML = '';
+            hideSaveButton(); // 开始生成时隐藏保存按钮
+
+            const selectedColorTheme = document.querySelector('input[name="colorTheme"]:checked').value;
+            const selectedPerspective = document.querySelector('input[name="perspective"]:checked').value;
+
+            let finalPrompt = prompt;
+            if (style !== '默认') {
+                const styleDescription = styleDescriptions[style];
+                finalPrompt = `${styleDescription}, ${prompt}`;
+            }
+            if (selectedColorTheme !== '默认') {
+                finalPrompt += `, ${colorThemes[selectedColorTheme]}`;
+            }
+            if (selectedPerspective !== '默认') {
+                finalPrompt += `, ${perspectives[selectedPerspective]}`;
+            }
+            // 删除文字叠加相关代码
+
+            const timestamp = Date.now();
+            const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=768&height=768&nologo=true&seed=${timestamp}`;
+
+            generatedImage.src = imageUrl;
+            addDanmaku();
+
+            // 重置 activeDanmakus
+            activeDanmakus = new Array(totalLanes).fill(null);
+
+            generatedImage.onload = () => {
+                if (isGenerating) {
+                    placeholderSvg.classList.add('hidden');
+                    generatedImage.classList.remove('hidden');
+                    lastGeneratedImageSrc = imageUrl;
+                    
+                    // 应用选中的滤镜
+                    const selectedFilter = document.querySelector('input[name="filter"]:checked').value;
+                    applyFilter(generatedImage, selectedFilter);
+                    
+                    stopImageGeneration();
+                    showSaveButton(); // 图片加载完成后显示保存按钮
+                }
+            };
+        }
+
+        function stopImageGeneration() {
+            isGenerating = false;
+            generatingOverlay.classList.add('hidden');
+            danmakuContainer.innerHTML = '';
+            
+            if (lastGeneratedImageSrc) {
+                generatedImage.src = lastGeneratedImageSrc;
+                placeholderSvg.classList.add('hidden');
+                generatedImage.classList.remove('hidden');
+                showSaveButton(); // 如果有生成的图片，显示保存按钮
+            } else {
+                placeholderSvg.classList.remove('hidden');
+                generatedImage.classList.add('hidden');
+                hideSaveButton(); // 如果没有生成的图片，隐藏保存按钮
+            }
+
+            // 清除所有活动的弹幕
+            activeDanmakus.forEach((danmaku, index) => {
+                if (danmaku) {
+                    danmaku.remove();
+                    activeDanmakus[index] = null;
+                }
+            });
+        }
+
+        // 添加滤镜变化监听
+        document.querySelectorAll('input[name="filter"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                if (generatedImage.src) {
+                    applyFilter(generatedImage, radio.value);
+                }
+            });
+        });
+
+        saveBtn.addEventListener('click', saveImage);
+
+        async function saveImage() {
+            if (!generatedImage.src || generatedImage.src === window.location.href) {
+                alert('请先生成一张图片');
+                return;
+            }
+
+            try {
+                // 获取当前选择的滤镜
+                const selectedFilter = document.querySelector('input[name="filter"]:checked').value;
+                
+                // 创建一个新的图片元素
+                const img = new Image();
+                img.crossOrigin = 'anonymous';  // 尝试设置跨域
+                img.src = generatedImage.src;
+                
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                });
+
+                // 创建 canvas 并绘制图片
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                
+                // 应用滤镜
+                ctx.filter = filterEffects[selectedFilter];
+                ctx.drawImage(img, 0, 0);
+
+                // 将 canvas 转换为 blob
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+
+                // 创建下载链接
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'generated_image.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('保存图片时出错:', error);
+                alert('保存图片时出错。由于跨域限制，请尝试右键点击图片并选择"图片另存为"来保存图片。');
+            }
+        }
+    </script>
+</body>
+</html>
